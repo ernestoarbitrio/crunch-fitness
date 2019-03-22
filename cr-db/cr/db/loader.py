@@ -5,6 +5,7 @@ import sys
 
 from cr.db.store import global_settings, connect
 
+
 def load_data(filename, settings=None, clear=None):
     if settings is None:
         settings = global_settings
@@ -23,6 +24,25 @@ def load_data(filename, settings=None, clear=None):
         objs = json.load(the_file)
         for obj in objs:
             collection.insert(obj)
+
+
+def load_bulk_data(filename, settings=None, clear=None):
+    if settings is None:
+        settings = global_settings
+        global_settings.update(json.load(file(sys.argv[1])))
+
+    db = connect(settings)
+
+    obj_name = os.path.basename(filename).split('.')[0]
+
+    collection = getattr(db, obj_name)
+
+    if clear:
+        collection.remove()
+
+    with file(filename) as the_file:
+        objs = json.load(the_file)
+    collection.insert_many(objs)
 
 
 def load_dataset(csv_filename, db):

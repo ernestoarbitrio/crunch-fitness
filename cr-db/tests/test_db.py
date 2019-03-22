@@ -5,7 +5,7 @@ hint: we use py.test.
 """
 
 import os
-from cr.db.loader import load_data, load_dataset
+from cr.db.loader import load_data, load_dataset, load_bulk_data
 from cr.db.store import global_settings as settings
 from cr.db.store import connect
 
@@ -15,14 +15,23 @@ db = connect(settings)
 _here = os.path.dirname(__file__)
 
 
-def test_loader():
+def test_loader(benchmark):
     """
     Is this the most efficient way that we could load users?  What if the file had 1m users?
-    How would/could you benchmark this?
+    How would/could you benchmark this? -> Look at load_bulk_data in loader.py
     """
 
-    load_data(_here + '/data/users.json', settings=settings, clear=True)
-    assert db.users.count() == 10, db.users.count()
+    benchmark(load_data, _here + '/data/users.json', settings=settings, clear=True)
+    assert db.users.count_documents({}) == 10, db.users.count_documents({})
+
+
+def test_bulk_loader(benchmark):
+    """
+    Test for load_bulk_data function using insert_many
+    """
+
+    benchmark(load_bulk_data, _here + '/data/users.json', settings=settings, clear=True)
+    assert db.users.count_documents({}) == 10, db.users.count_documents({})
 
 
 def test_load_dataset():

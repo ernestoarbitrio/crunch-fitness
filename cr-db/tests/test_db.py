@@ -14,6 +14,7 @@ db = connect(settings)
 
 _here = os.path.dirname(__file__)
 
+
 def test_loader():
     """
     Is this the most efficient way that we could load users?  What if the file had 1m users?
@@ -23,8 +24,8 @@ def test_loader():
     load_data(_here + '/data/users.json', settings=settings, clear=True)
     assert db.users.count() == 10, db.users.count()
 
-def test_load_dataset():
 
+def test_load_dataset():
     csv_filename = _here + '/data/S-O-1k.csv'
 
     ds_id = load_dataset(csv_filename, db)

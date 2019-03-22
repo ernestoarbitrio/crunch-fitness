@@ -49,27 +49,31 @@ def load_bulk_data(filename, settings=None, clear=None):
 def load_dataset(csv_filename, db, h=None):
     '''
     Requirements: pandas
-    Using pandas to load the csv file, all the field will be automatically casted to the right type of data.
+    Using pandas to load the csv file (chunk size is useful when file is big),
+    all the field will be automatically casted to the right type of data.
     '''
-    df = pd.read_csv(csv_filename, header=h)
 
-    gender_unique = {v: k for k, v in enumerate(df.iloc[:, -1].unique())}
-    df.iloc[:, -1] = df.iloc[:, -1].apply(lambda x: gender_unique[x] if x != None else gender_unique[
-        x])  # this produce an int64 type on gender column
+    file_csv = pd.read_csv(csv_filename, header=h, chunksize=1000)
 
-    categorical = df.select_dtypes(include='object').apply(
-        pd.factorize)  # Encode the object as an enumerated type or categorical variable (integer values).
-    bools = df.select_dtypes(include='bool')  # Cast boolenas to bool
-    others = df.select_dtypes(exclude=['bool', 'object'])  # get all the other columns of the dataframe
+    for df in file_csv:
 
-    headers = list(categorical.index) + list(bools.columns) + list(others.columns)
+        gender_unique = {v: k for k, v in enumerate(df.iloc[:, -1].unique())}
+        df.iloc[:, -1] = df.iloc[:, -1].apply(lambda x: gender_unique[x] if x != None else gender_unique[
+            x])  # this produce an int64 type on gender column
 
-    columns = [a[0].tolist() for a in categorical.values] + \
-              [list(bools[col]) for col in bools] + \
-              [list(others[col]) for col in others]
+        categorical = df.select_dtypes(include='object').apply(
+            pd.factorize)  # Encode the object as an enumerated type or categorical variable (integer values).
+        bools = df.select_dtypes(include='bool')  # Cast boolenas to bool
+        others = df.select_dtypes(exclude=['bool', 'object'])  # get all the other columns of the dataframe
 
-    data = {'headers': headers,
-            'columns': columns
-            }
+        headers = list(categorical.index) + list(bools.columns) + list(others.columns)
 
-    return db.datasets.insert(data)
+        columns = [a[0].tolist() for a in categorical.values] + \
+                  [list(bools[col]) for col in bools] + \
+                  [list(others[col]) for col in others]
+
+        data = {'headers': headers,
+                'columns': columns
+                }
+
+        return db.datasets.insert(data)

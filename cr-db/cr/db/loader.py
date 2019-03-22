@@ -2,7 +2,8 @@ import csv
 import os
 import json
 import sys
-
+import pandas as pd
+import gridfs
 from cr.db.store import global_settings, connect
 
 
@@ -45,29 +46,30 @@ def load_bulk_data(filename, settings=None, clear=None):
     collection.insert_many(objs)
 
 
-def load_dataset(csv_filename, db):
-    with file(csv_filename, 'rU') as csv_file:
-        csv_data = csv.reader(csv_file)
-        headers = csv_data.next()
+def load_dataset(csv_filename, db, h=None):
+    '''
+    Requirements: pandas
+    Using pandas to load the csv file, all the field will be automatically casted to the right type of data.
+    '''
+    df = pd.read_csv(csv_filename, header=h)
 
-        last_header = None
-        for i, header in enumerate(headers):
-            if header:
-                last_header = header
-            else:
-                # multiple response have no header
-                headers[i] = last_header
+    gender_unique = {v: k for k, v in enumerate(df.iloc[:, -1].unique())}
+    df.iloc[:, -1] = df.iloc[:, -1].apply(lambda x: gender_unique[x] if x != None else gender_unique[
+        x])  # this produce an int64 type on gender column
 
-        columns = [[] for _ in headers]
-        for r, row in enumerate(csv_data):
-            for i, data in enumerate(row):
-                if data:
-                    columns[i].append(str(data))
-                else:
-                    columns[i].append(None)
+    categorical = df.select_dtypes(include='object').apply(
+        pd.factorize)  # Encode the object as an enumerated type or categorical variable (integer values).
+    bools = df.select_dtypes(include='bool')  # Cast boolenas to bool
+    others = df.select_dtypes(exclude=['bool', 'object'])  # get all the other columns of the dataframe
 
-        data = {'headers': headers,
-                'columns': columns,
-                }
+    headers = list(categorical.index) + list(bools.columns) + list(others.columns)
 
-        return db.datasets.insert(data)
+    columns = [a[0].tolist() for a in categorical.values] + \
+              [list(bools[col]) for col in bools] + \
+              [list(others[col]) for col in others]
+
+    data = {'headers': headers,
+            'columns': columns
+            }
+
+    return db.datasets.insert(data)

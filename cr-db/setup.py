@@ -14,7 +14,7 @@ setup(
     author=u'Crunch.io',
     author_email='dev@crunch.io',
     license='Proprietary',
-    install_requires=['pymongo'],
+    install_requires=['pymongo', 'pytest-benchmark', 'pandas'],
     tests_require=[],
     packages=find_packages(exclude=['ez_setup']),
     namespace_packages=['cr'],

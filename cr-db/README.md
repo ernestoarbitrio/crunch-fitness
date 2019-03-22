@@ -27,5 +27,6 @@ test_db and loader.py
 
 Assumptions
 
+Python Version 2.7.15
 I Used pandas for dataset manipulation
 I Used pytest-benchmark for benchmarking the test loader

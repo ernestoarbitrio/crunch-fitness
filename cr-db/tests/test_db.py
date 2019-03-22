@@ -8,6 +8,7 @@ import os
 import csv
 import numpy as np
 import pandas as pd
+
 from cr.db.loader import load_data, load_dataset, load_bulk_data
 from cr.db.store import global_settings as settings
 from cr.db.store import connect
@@ -63,6 +64,12 @@ class TestLoadDataset(object):
 
     # What other strategies would you employ if you had 1000s of datasets with 1 million rows per dataset?
 
+    # By sharding data ingestion across multiple nodes (horizontal scaling with replica set).
+    # In this way the load can be distributed and processed across the hosts.Replication is handled via
+    # Master - Slave with the ability to add additional nodes as needed. Scaling Mongo horizontally
+    # the chunks of data can be distributed by the Balancer across the disks on the nodes.
+    # This increases write (and read I guess) capacity by distributing I/O operations.
+
     def test_load_dataset_1k(self):
         csv_filename = _here + '/data/S-O-1k.csv'
 
@@ -104,7 +111,7 @@ def test_select_with_filter():
        wanna elaborate for statistical inference
     """
 
-    df = pd.read_csv('data/S-O-1k.csv', header=0)
+    df = pd.read_csv(_here + '/data/S-O-1k.csv', header=0)
 
     female_df = df[df['Combined Gender'] == 'Female']
     female_df = female_df.loc[:, ['FormalEducation', 'SalaryAdjusted']]
@@ -121,11 +128,23 @@ def test_select_with_filter():
 
     final = []
     for k in map_v:
-        final.append((k, np.mean(sv_array['salary_adj'][sv_array['formal_education'] == k]),
-                      np.var(sv_array['salary_adj'][sv_array['formal_education'] == k]),
-                      np.std(sv_array['salary_adj'][sv_array['formal_education'] == k])))
+        mean = np.mean(sv_array['salary_adj'][sv_array['formal_education'] == k])
+        var = np.var(sv_array['salary_adj'][sv_array['formal_education'] == k])
+        std = np.std(sv_array['salary_adj'][sv_array['formal_education'] == k])
+
+        mean = mean if not np.isnan(mean) else -1
+        var = var if not np.isnan(var) else -1
+        std = std if not np.isnan(std) else -1
+
+        final.append((k, mean, var, std))
 
     final = np.array(final, dtype=final_array_type)
-    print(final)
-    assert 0  # only for print out the table results about the distribution of the formal education on salary
 
+    expected = np.array([("Bachelor's degree", 34174.5859375, 2.08082528e+08, 14425.06640625),
+                         ("Some college/university study without earning a bachelor's degree", -1.00000000e+00,
+                          -1.00000000e+00, -1.00000000e+00),
+                         ('Primary/elementary school', 85000., 0.00000000e+00, 0.),
+                         ('Secondary school', 27272.7265625, 0.00000000e+00, 0.),
+                         ("Master's degree", 51831.54296875, 4.18664192e+08, 20461.28515625)], dtype=final_array_type)
+
+    np.testing.assert_array_equal(final, expected)
